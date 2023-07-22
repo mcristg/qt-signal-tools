@@ -136,11 +136,11 @@ bool QtSignalForwarder::bind(QObject* sender, const char* signal, QObject *conte
 		setupDestroyNotify(sender);
 	}
 	
-	m_senderSignalBindingIds.insertMulti(sender, bindingId);
+	m_senderSignalBindingIds.insert(sender, bindingId);
 
 	if (context) {
 		setupDestroyNotify(context);
-		m_contextBindingIds.insertMulti(context, bindingId);
+		m_contextBindingIds.insert(context, bindingId);
 	}
 
 	return true;
@@ -157,7 +157,7 @@ bool QtSignalForwarder::bind(QObject* sender, QEvent::Type event, const QtMetaca
 	sender->installEventFilter(this);
 
 	EventBinding binding(sender, event, callback, filter);
-	m_eventBindings.insertMulti(sender, binding);
+	m_eventBindings.insert(sender, binding);
 
 	return true;
 }
@@ -165,7 +165,7 @@ bool QtSignalForwarder::bind(QObject* sender, QEvent::Type event, const QtMetaca
 void QtSignalForwarder::unbind(QObject* sender, const char* signal)
 {
 	int signalIndex = qtObjectSignalIndex(sender, signal);
-	QHash<QObject*,int>::iterator iter = m_senderSignalBindingIds.find(sender);
+	QMultiHash<QObject*,int>::iterator iter = m_senderSignalBindingIds.find(sender);
 	while (iter != m_senderSignalBindingIds.end() && iter.key() == sender) {
 		Q_ASSERT(m_signalBindings.contains(*iter));
 		const Binding& binding = m_signalBindings.value(*iter);
@@ -204,7 +204,7 @@ void QtSignalForwarder::unbind(QObject* sender, QEvent::Type event)
 void QtSignalForwarder::unbind(QObject* sender)
 {
 	{
-		QHash<QObject*,int>::iterator iter = m_senderSignalBindingIds.find(sender);
+		QMultiHash<QObject*,int>::iterator iter = m_senderSignalBindingIds.find(sender);
 		while (iter != m_senderSignalBindingIds.end() && iter.key() == sender) {
 			m_freeSignalBindingIds << *iter;
 			QObject* context = m_signalBindings.take(*iter).context;
@@ -218,7 +218,7 @@ void QtSignalForwarder::unbind(QObject* sender)
 	disconnect(sender, 0, this, 0);
 
 	{
-		QHash<QObject*,int>::iterator iter = m_contextBindingIds.find(sender);
+		QMultiHash<QObject*,int>::iterator iter = m_contextBindingIds.find(sender);
 		while (iter != m_contextBindingIds.end() && iter.key() == sender) {
 			m_freeSignalBindingIds << *iter;
 			int id = *iter;
@@ -348,7 +348,7 @@ int QtSignalForwarder::bindingCount() const
 
 bool QtSignalForwarder::isConnected(QObject* sender) const
 {
-	QHash<QObject*,int>::const_iterator signalBindingIter = m_senderSignalBindingIds.find(sender);
+	QMultiHash<QObject*,int>::const_iterator signalBindingIter = m_senderSignalBindingIds.find(sender);
 	while (signalBindingIter != m_senderSignalBindingIds.end() &&
 	       signalBindingIter.key() == sender) {
 		Q_ASSERT(m_signalBindings.contains(*signalBindingIter));
@@ -379,7 +379,7 @@ bool QtSignalForwarder::connectWithSender(QObject* sender, const char* signal, Q
 		qWarning() << "Sender type for first argument of" << slot << "has not been registered with qRegisterMetaType<T>()";
 		return false;
 	}
-	callback.bind(0, QVariant(senderType, &sender));
+	callback.bind(0, QVariant(QMetaType(senderType), &sender));
 	return connect(sender, signal, callback);
 }
 
